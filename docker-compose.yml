@@ -1,0 +1,49 @@
+version: "3.0"
+services:
+  redis:
+    image: redis
+
+  timescaledb:
+    container_name: database
+    image: timescale/timescaledb:latest-pg17
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Treader@123
+      POSTGRES_DB: postgres
+    volumes:
+      - ./timescaledb-data:/var/lib/postgresql/data
+
+  django:
+    container_name: backend
+    build:
+      context: ./treader
+    command: python manage.py runserver 0.0.0.0:5001
+    volumes:
+      - ./treader:/usr/src/app
+    ports:
+      - 5001:5001
+      # here first 5000 is my local machine and second 5001 is the port of the container
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=e5fd13492f07e4cdeb28cd8ed410803e119d051f74dd3561ddce1f170bd87eed
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+    depends_on:
+      - timescaledb
+      - redis
+
+  celery:
+    container_name: celery
+    build:
+      context: ./treader
+    command: celery --app=treader worker -l INFO
+    volumes:
+      - ./treader:/usr/src/app
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=e5fd13492f07e4cdeb28cd8ed410803e119d051f74dd3561ddce1f170bd87eed
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+    depends_on:
+      - timescaledb
+      - redis
